@@ -33,3 +33,7 @@
 
 # Folders
 Linux Examples
+.vscode
+
+# Files
+*.txt
