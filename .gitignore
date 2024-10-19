@@ -37,3 +37,4 @@ Linux Examples
 
 # Files
 *.txt
+!strace_output.txt

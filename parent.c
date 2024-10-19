@@ -4,9 +4,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <fcntl.h>
 
-int random()
+int random_number()
 {
     return rand() % 100;
 }
@@ -37,10 +36,13 @@ int main()
         return 1;
     }
 
-    if (child1_pid == 0)
+    if (child1_pid == 0)  // Child 1
     {
-        close(pipe1[1]);
-        execl("./child", "./child", "0", file1, NULL);
+        close(pipe1[1]);  // Close unused write end
+        dup2(pipe1[0], STDIN_FILENO);  // Redirect stdin to read end of pipe
+        close(pipe1[0]);  // Close the original pipe read end
+
+        execl("./child", "./child", "stdin", file1, NULL);
         perror("execl error");
         return 1;
     }
@@ -52,16 +54,19 @@ int main()
         return 1;
     }
 
-    if (child2_pid == 0)
+    if (child2_pid == 0)  // Child 2
     {
-        close(pipe2[1]);
-        execl("./child", "./child", "1", file2, NULL);
+        close(pipe2[1]);  // Close unused write end
+        dup2(pipe2[0], STDIN_FILENO);  // Redirect stdin to read end of pipe
+        close(pipe2[0]);  // Close the original pipe read end
+
+        execl("./child", "./child", "stdin", file2, NULL);
         perror("execl error");
         return 1;
     }
 
-    close(pipe1[0]);
-    close(pipe2[0]);
+    close(pipe1[0]);  // Parent closes read end of pipe1
+    close(pipe2[0]);  // Parent closes read end of pipe2
 
     char input[1024];
     while (1)
@@ -71,20 +76,23 @@ int main()
 
         if (strcmp(input, "exit") == 0)
         {
+            // Send the exit signal to both children
+            write(pipe1[1], "exit", strlen("exit") + 1);  // +1 for null terminator
+            write(pipe2[1], "exit", strlen("exit") + 1);  // +1 for null terminator
             break;
         }
 
-        if (random() > 20)
+        if (random_number() > 20)
         {
-            write(pipe1[1], input, strlen(input));
+            write(pipe1[1], input, strlen(input) + 1);  // +1 to send null terminator
         }
         else
         {
-            write(pipe2[1], input, strlen(input));
+            write(pipe2[1], input, strlen(input) + 1);  // +1 to send null terminator
         }
     }
 
-    close(pipe1[1]);
+    close(pipe1[1]);  // Close the write ends in the parent
     close(pipe2[1]);
 
     wait(NULL);

@@ -21,34 +21,41 @@ int main(int argc, char *argv[])
         perror("wrong number of arguments");
         return 1;
     }
-    
-    int pipe_fd = atoi(argv[1]);
+
+    // Using "stdin" to read from the pipe
     char *output_file = argv[2];
 
     char buffer[1024];
-    ssize_t read_bytes = read(pipe_fd, buffer, sizeof(buffer)- 1);
-    if (read_bytes < 0)
+
+    // Continuously read from the pipe until "exit" is received
+    while (1)
     {
-        perror("error while reading from pipe");
-        return 1;
+        ssize_t read_bytes = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
+        if (read_bytes < 0)
+        {
+            perror("error while reading from pipe");
+            return 1;
+        }
+
+        buffer[read_bytes] = '\0';
+
+        if (strcmp(buffer, "exit") == 0)
+        {
+            break;  // Exit the loop if "exit" is received
+        }
+
+        reverse_string(buffer);
+
+        FILE *file = fopen(output_file, "a");  // Append to the file
+        if (!file)
+        {
+            perror("error while opening output file");
+            return 1;
+        }
+
+        fprintf(file, "%s\n", buffer);  // Write the reversed string
+        fclose(file);
     }
-
-    buffer[read_bytes] = '\0';
-
-    reverse_string(buffer);
-
-    FILE *file = fopen(output_file, "w");
-    if (!file)
-    {
-        perror("error while opening output file");
-        return 1;
-    }
-
-    fprintf(file, "%s", buffer);
-    fclose(file);
-
-    close(pipe_fd);
 
     return 0;
-
 }
