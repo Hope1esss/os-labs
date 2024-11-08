@@ -3,99 +3,84 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#define MAX_MATCHES 100000  // Максимальное количество совпадений, которое мы можем хранить
+pthread_mutex_t mutex;
+const char *text;
+const char *pattern;
+int text_len;
+int num_threads;
+int pattern_len;
 
-// Структура для передачи данных в поток
-typedef struct {
-    const char* text;
-    const char* pattern;
-    int start;
-    int end;
-    int* results;
-    int* result_count;
-    pthread_mutex_t* mutex;
-} ThreadData;
+void *naive_multithread_search(void *arg)
+{
+    int thread_id = *(int *)arg;
+    int segment_size = text_len / num_threads;
+    int start_pos = thread_id * segment_size;
+    int end_pos = (thread_id == num_threads - 1) ? text_len : start_pos + segment_size + pattern_len - 1;
 
-// Функция, выполняющая наивный поиск подстроки в заданном диапазоне
-void* naive_search(void* arg) {
-    ThreadData* data = (ThreadData*) arg;
-    const char* text = data->text;
-    const char* pattern = data->pattern;
-    int pattern_len = strlen(pattern);
-
-    for (int i = data->start; i <= data->end - pattern_len + 1; i++) {
-        if (strncmp(&text[i], pattern, pattern_len) == 0) {
-            pthread_mutex_lock(data->mutex); // Блокируем доступ к результатам
-            if (*data->result_count < MAX_MATCHES) {
-                data->results[(*data->result_count)++] = i;
+    for (int i = start_pos; i <= end_pos - pattern_len; i++)
+    {
+        int j;
+        for (j = 0; j < pattern_len; j++)
+        {
+            if (text[i + j] != pattern[j])
+            {
+                break;
             }
-            pthread_mutex_unlock(data->mutex); // Разблокируем
+        }
+
+        if (j == pattern_len)
+        {
+            pthread_mutex_lock(&mutex);
+            printf("Thread %d found a match at position %d\n", thread_id, i);
+            pthread_mutex_unlock(&mutex);
         }
     }
+
     return NULL;
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 4) {
+int main(int argc, char *argv[])
+{
+    if (argc < 4)
+    {
         fprintf(stderr, "Usage: %s <text> <pattern> <max_threads>\n", argv[0]);
         return 1;
     }
 
-    const char* text = argv[1];
-    const char* pattern = argv[2];
+    text = argv[1];
+    pattern = argv[2];
     int max_threads = atoi(argv[3]);
 
-    if (max_threads <= 0) {
-        fprintf(stderr, "Error: max_threads should be a positive integer\n");
-        return 1;
+    text_len = strlen(text);
+    pattern_len = strlen(pattern);
+
+    if (text_len < pattern_len)
+    {
+        num_threads = 1;
     }
-
-    int text_len = strlen(text);
-    int pattern_len = strlen(pattern);
-
-    // Определяем количество потоков
-    int num_threads = (text_len < pattern_len) ? 1 : (text_len / pattern_len < max_threads ? text_len / pattern_len : max_threads);
-
-    int chunk_size = text_len / num_threads;
-    int results[MAX_MATCHES];
-    int result_count = 0;
-    pthread_mutex_t mutex;
-    pthread_mutex_init(&mutex, NULL);
+    else
+    {
+        num_threads = (text_len / pattern_len) < max_threads ? (text_len / pattern_len) : max_threads;
+    }
 
     pthread_t threads[num_threads];
+    int thread_ids[num_threads];
 
-    // Создаем потоки
-    for (int i = 0; i < num_threads; i++) {
-        int start = i * chunk_size;
-        int end = (i == num_threads - 1) ? text_len - 1 : (i + 1) * chunk_size + pattern_len - 2;
+    pthread_mutex_init(&mutex, NULL);
 
-        // Заполняем структуру для передачи в поток
-        ThreadData* data = (ThreadData*)malloc(sizeof(ThreadData));
-        data->text = text;
-        data->pattern = pattern;
-        data->start = start;
-        data->end = end;
-        data->results = results;
-        data->result_count = &result_count;
-        data->mutex = &mutex;
-
-        // Запускаем поток
-        pthread_create(&threads[i], NULL, naive_search, (void*)data);
+    for (int i = 0; i < num_threads; i++)
+    {
+        thread_ids[i] = i;
+        pthread_create(&threads[i], NULL, naive_multithread_search, &thread_ids[i]);
     }
 
-    // Ожидаем завершения всех потоков
-    for (int i = 0; i < num_threads; i++) {
+    for (int i = 0; i < num_threads; i++)
+    {
         pthread_join(threads[i], NULL);
     }
 
     pthread_mutex_destroy(&mutex);
 
-    // Выводим результаты
-    printf("Found matches at positions: ");
-    for (int i = 0; i < result_count; i++) {
-        printf("%d ", results[i]);
-    }
-    printf("\n");
-
+    printf("Search completed. Threads used: %d\n", num_threads);
     return 0;
 }
