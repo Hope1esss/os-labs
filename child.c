@@ -2,15 +2,19 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
-void reverse_string(char *str)
+#define SHARED_MEMORY_SIZE 1024
+
+void reverse_string(char *string)
 {
-    int len = strlen(str);
+    int len = strlen(string);
     for (int i = 0; i < len / 2; i++)
     {
-        char temp = str[i];
-        str[i] = str[len - i - 1];
-        str[len - i - 1] = temp;
+        char temp = string[i];
+        string[i] = string[len - i - 1];
+        string[len - i - 1] = temp;
     }
 }
 
@@ -18,44 +22,58 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        perror("wrong number of arguments");
+        perror("Invalid number of arguments in child");
         return 1;
     }
 
-    // Using "stdin" to read from the pipe
+    char *shared_memory_name = argv[1];
     char *output_file = argv[2];
 
-    char buffer[1024];
+    int fd = shm_open(shared_memory_name, O_RDWR, 0666);
 
-    // Continuously read from the pipe until "exit" is received
-    while (1)
+    if (fd == -1)
     {
-        ssize_t read_bytes = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
-        if (read_bytes < 0)
-        {
-            perror("error while reading from pipe");
-            return 1;
-        }
-
-        buffer[read_bytes] = '\0';
-
-        if (strcmp(buffer, "exit") == 0)
-        {
-            break;  // Exit the loop if "exit" is received
-        }
-
-        reverse_string(buffer);
-
-        FILE *file = fopen(output_file, "a");  // Append to the file
-        if (!file)
-        {
-            perror("error while opening output file");
-            return 1;
-        }
-
-        fprintf(file, "%s\n", buffer);  // Write the reversed string
-        fclose(file);
+        perror("shm_open error");
+        return 1;
     }
 
+    char *shared_memory = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (shared_memory == MAP_FAILED)
+    {
+        perror("mmap error");
+        close(fd);
+        shm_unlink(shared_memory_name);
+        return 1;
+    }
+
+    while (1)
+    {
+        if (strlen(shared_memory) > 0)
+        {
+            if (strcmp(shared_memory, "exit") == 0)
+            {
+                break;
+            }
+
+            reverse_string(shared_memory);
+
+            FILE *file = fopen(output_file, "a");
+
+            if (!file)
+            {
+                perror("error while opening output file");
+                return 1;
+            }
+
+            fprintf(file, "%s\n", shared_memory);
+            fclose(file);
+
+            memset(shared_memory, 0, SHARED_MEMORY_SIZE);
+        }
+        usleep(1000);
+    }
+
+    munmap(shared_memory, SHARED_MEMORY_SIZE);
     return 0;
 }
