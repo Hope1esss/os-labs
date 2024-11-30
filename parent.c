@@ -21,37 +21,37 @@ int main()
 {
     srand(time(NULL));
 
-    int fd1 = shm_open(SHM_NAME1, O_CREAT | O_RDWR, 0666);
-    int fd2 = shm_open(SHM_NAME2, O_CREAT | O_RDWR, 0666);
+    int shm_fd1 = shm_open(SHM_NAME1, O_CREAT | O_RDWR, 0666);
+    int shm_fd2 = shm_open(SHM_NAME2, O_CREAT | O_RDWR, 0666);
     
-    if (fd1 == -1 || fd2 == -1)
+    if (shm_fd1 == -1 || shm_fd2 == -1)
     {
         perror("shm_open error");
-        close(fd1);
-        close(fd2);
+        close(shm_fd1);
+        close(shm_fd2);
         shm_unlink(SHM_NAME1);
         shm_unlink(SHM_NAME2);
         return 1;
     }
 
-    if (ftruncate(fd1, SHARED_MEMORY_SIZE) == -1 || ftruncate(fd2, SHARED_MEMORY_SIZE) == -1)
+    if (ftruncate(shm_fd1, SHARED_MEMORY_SIZE) == -1 || ftruncate(shm_fd2, SHARED_MEMORY_SIZE) == -1)
     {
         perror("ftruncate error");
-        close(fd1);
-        close(fd2);
+        close(shm_fd1);
+        close(shm_fd2);
         shm_unlink(SHM_NAME1);
         shm_unlink(SHM_NAME2);
         return 1;
     }
 
-    char *shared_memory1 = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd1, 0);
-    char *shared_memory2 = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd2, 0);
+    char *shared_memory1 = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+    char *shared_memory2 = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
 
     if (shared_memory1 == MAP_FAILED || shared_memory2 == MAP_FAILED)
     {
         perror("mmap error");
-        close(fd1);
-        close(fd2);
+        close(shm_fd1);
+        close(shm_fd2);
         shm_unlink(SHM_NAME1);
         shm_unlink(SHM_NAME2);
         return 1;
@@ -69,8 +69,8 @@ int main()
         perror("fork error");
         munmap(shared_memory1, SHARED_MEMORY_SIZE);
         munmap(shared_memory2, SHARED_MEMORY_SIZE);
-        close(fd1);
-        close(fd2);
+        close(shm_fd1);
+        close(shm_fd2);
         shm_unlink(SHM_NAME1);
         shm_unlink(SHM_NAME2);
         return 1;
@@ -89,8 +89,8 @@ int main()
         perror("fork error");
         munmap(shared_memory1, SHARED_MEMORY_SIZE);
         munmap(shared_memory2, SHARED_MEMORY_SIZE);
-        close(fd1);
-        close(fd2);
+        close(shm_fd1);
+        close(shm_fd2);
         shm_unlink(SHM_NAME1);
         shm_unlink(SHM_NAME2);
         return 1;
@@ -131,8 +131,8 @@ int main()
 
     munmap(shared_memory1, SHARED_MEMORY_SIZE);
     munmap(shared_memory2, SHARED_MEMORY_SIZE);
-    close(fd1);
-    close(fd2);
+    close(shm_fd1);
+    close(shm_fd2);
     shm_unlink(SHM_NAME1);
     shm_unlink(SHM_NAME2);
     return 0;

@@ -29,20 +29,20 @@ int main(int argc, char *argv[])
     char *shared_memory_name = argv[1];
     char *output_file = argv[2];
 
-    int fd = shm_open(shared_memory_name, O_RDWR, 0666);
+    int shm_fd = shm_open(shared_memory_name, O_RDWR, 0666);
 
-    if (fd == -1)
+    if (shm_fd == -1)
     {
         perror("shm_open error");
         return 1;
     }
 
-    char *shared_memory = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    char *shared_memory = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
     if (shared_memory == MAP_FAILED)
     {
         perror("mmap error");
-        close(fd);
+        close(shm_fd);
         shm_unlink(shared_memory_name);
         return 1;
     }
@@ -63,6 +63,9 @@ int main(int argc, char *argv[])
             if (!file)
             {
                 perror("error while opening output file");
+                munmap(shared_memory, SHARED_MEMORY_SIZE);
+                close(shm_fd);
+                shm_unlink(shared_memory_name);
                 return 1;
             }
 
@@ -71,9 +74,11 @@ int main(int argc, char *argv[])
 
             memset(shared_memory, 0, SHARED_MEMORY_SIZE);
         }
-        usleep(1000);
+        usleep(500);
     }
 
     munmap(shared_memory, SHARED_MEMORY_SIZE);
+    close(shm_fd);
+    shm_unlink(shared_memory_name);
     return 0;
 }
