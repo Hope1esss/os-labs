@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
     {
         perror("mmap error");
         close(shm_fd);
-        shm_unlink(shared_memory_name);
         return 1;
     }
 
@@ -65,7 +64,6 @@ int main(int argc, char *argv[])
                 perror("error while opening output file");
                 munmap(shared_memory, SHARED_MEMORY_SIZE);
                 close(shm_fd);
-                shm_unlink(shared_memory_name);
                 return 1;
             }
 
@@ -79,6 +77,5 @@ int main(int argc, char *argv[])
 
     munmap(shared_memory, SHARED_MEMORY_SIZE);
     close(shm_fd);
-    shm_unlink(shared_memory_name);
     return 0;
 }
