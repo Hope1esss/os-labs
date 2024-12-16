@@ -117,6 +117,22 @@ void handle_pingall_command()
     }
 }
 
+void handle_list_command()
+{
+    printf("Listing all nodes:\n");
+    for (int i = 0; i < MAX_NODES; i++)
+    {
+        if (node_table[i] != NULL)
+        {
+            printf("Node %d, Parent: %d, PID: %d, Available: %s\n",
+                   node_table[i]->id,
+                   node_table[i]->parent ? node_table[i]->parent->id : -1,
+                   node_table[i]->pid,
+                   node_table[i]->is_available ? "Yes" : "No");
+        }
+    }
+}
+
 int main()
 {
     amqp_connection_state_t conn = connect_rabbitmq("localhost", 5672);
@@ -146,6 +162,10 @@ int main()
         else if (strcmp(command, "pingall") == 0)
         {
             handle_pingall_command();
+        }
+        else if (strcmp(command, "list") == 0)
+        {
+            handle_list_command();
         }
         else
         {
