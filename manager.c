@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define QUEUE_NAME "task_queue"
 
@@ -24,7 +25,7 @@ void launch_worker(int id)
         if (node)
         {
             node->pid = pid;
-            printf("Ok: Worker %d launched with pid %d \n", id, pid);
+            printf("Ok: %d\n", pid);
         }
     }
     else
@@ -99,22 +100,32 @@ void handle_exec_command(amqp_connection_state_t connection, const char *command
 
 void handle_pingall_command()
 {
-    printf("Checking availability of all nodes...\n");
+    printf("Ok: ");
     bool all_available = true;
+
+    // Флаг для добавления точки с запятой
+    bool first_unavailable = true;
 
     for (int i = 0; i < MAX_NODES; i++)
     {
         if (node_table[i] != NULL && !node_table[i]->is_available)
         {
-            printf("Node %d is unavailable\n", i);
+            if (!first_unavailable)
+            {
+                printf(";");
+            }
+            printf("%d", i);
+            first_unavailable = false;
             all_available = false;
         }
     }
 
     if (all_available)
     {
-        printf("Ok: -1\n");
+        printf("-1");
     }
+
+    printf("\n");
 }
 
 void handle_list_command()
@@ -130,6 +141,34 @@ void handle_list_command()
                    node_table[i]->pid,
                    node_table[i]->is_available ? "Yes" : "No");
         }
+    }
+}
+
+void handle_kill_command(const char *command)
+{
+    int id;
+    if (sscanf(command, "kill %d", &id) < 1)
+    {
+        printf("Error: Invalid kill command\n");
+        return;
+    }
+
+    Node *node = find_node(id);
+    if (!node)
+    {
+        printf("Error: Node not found\n");
+        return;
+    }
+
+    // Завершаем процесс узла
+    if (kill(node->pid, SIGKILL) == 0)
+    {
+        printf("Ok: Node %d killed\n", id);
+        mark_subtree_unavailable(node); // Рекурсивно пометить узел и всех потомков как недоступных
+    }
+    else
+    {
+        perror("Error: Failed to kill node");
     }
 }
 
@@ -166,6 +205,10 @@ int main()
         else if (strcmp(command, "list") == 0)
         {
             handle_list_command();
+        }
+        else if (strncmp(command, "kill", 4) == 0)
+        {
+            handle_kill_command(command);
         }
         else
         {

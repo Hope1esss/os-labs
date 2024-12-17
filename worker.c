@@ -17,7 +17,6 @@ void process_command(int node_id, const char *command, char *response) {
     int value;
 
     if (sscanf(command, "%s %d", name, &value) == 2) {
-        // Сохранение значения
         bool found = false;
         for (int i = 0; i < dict_size; i++) {
             if (strcmp(dictionary[i].key, name) == 0) {
@@ -33,7 +32,6 @@ void process_command(int node_id, const char *command, char *response) {
         }
         sprintf(response, "Ok:%d", node_id);
     } else if (sscanf(command, "%s", name) == 1) {
-        // Получение значения
         for (int i = 0; i < dict_size; i++) {
             if (strcmp(dictionary[i].key, name) == 0) {
                 sprintf(response, "Ok:%d: %d", node_id, dictionary[i].value);
@@ -60,7 +58,6 @@ int main(int argc, char *argv[]) {
     amqp_queue_declare(conn, 1, amqp_cstring_bytes(queue_name), 0, 0, 0, 1, amqp_empty_table);
     amqp_basic_consume(conn, 1, amqp_cstring_bytes(queue_name), amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
 
-    printf("Worker %d is running.\n", node_id);
 
     while (1) {
         amqp_rpc_reply_t res;
@@ -72,7 +69,7 @@ int main(int argc, char *argv[]) {
         if (res.reply_type == AMQP_RESPONSE_NORMAL) {
             char response[256];
             process_command(node_id, (char *)envelope.message.body.bytes, response);
-            printf("Processed: %s\n", response);
+            printf("%s\n", response);
         }
         amqp_destroy_envelope(&envelope);
     }

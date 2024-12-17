@@ -55,13 +55,20 @@ Node *find_node(int id)
     return (id >= 0 && id < MAX_NODES) ? node_table[id] : NULL;
 }
 
-void update_availability(int id, bool available)
+void mark_subtree_unavailable(Node *node)
 {
-    Node *node = find_node(id);
-    if (node)
+    if (!node)
+        return;
+
+    // Пометить текущий узел как недоступный
+    node->is_available = false;
+
+    // Рекурсивно пометить всех детей
+    for (int i = 0; i < node->child_count; i++)
     {
-        node->is_available = available;
+        mark_subtree_unavailable(node->children[i]);
     }
 }
+
 
 #endif
