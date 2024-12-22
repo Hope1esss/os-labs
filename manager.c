@@ -200,11 +200,11 @@ int main()
         }
         else if (strcmp(command, "pingall") == 0)
         {
-            handle_pingall_command();
+            handle_pingall_command(command);
         }
         else if (strcmp(command, "list") == 0)
         {
-            handle_list_command();
+            handle_list_command(command);
         }
         else if (strncmp(command, "kill", 4) == 0)
         {
