@@ -1,2 +1,2 @@
-program1.c: gcc -o program1 program1.c -L. -lintegrals -lpi -lm -Wl,-rpath=.
+program1.c: gcc -o program1 src/integrals.c src/pi.c program1.c -Iinclude -lm
 program2.c: gcc -o program2 program2.c -ldl -L. -lintegrals -lpi -lm -Wl,-rpath=.
