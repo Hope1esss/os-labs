@@ -37,6 +37,7 @@ void disconnect_from_server(const char *login)
     write(server_fd, buffer, strlen(buffer));
     close(server_fd);
 }
+
 void send_message(const char *login, const char *receiver, const char *message)
 {
     int server_fd = open(SERVER_PIPE, O_WRONLY);
@@ -80,10 +81,11 @@ void receive_messages(const char *pipe_name)
     while (1)
     {
         memset(buffer, 0, MAX_MSG_LEN);
-        ssize_t bytes_read = read(client_fd, buffer, MAX_MSG_LEN);
+        ssize_t bytes_read = read(client_fd, buffer, MAX_MSG_LEN - 1);
         if (bytes_read > 0)
         {
-            printf("\n%s\n> ", buffer);
+            buffer[bytes_read] = '\0';
+            printf("\n%s> ", buffer);
             fflush(stdout);
         }
     }
@@ -120,7 +122,7 @@ int main() {
 
     // Main loop: send messages or search history
     while (1) {
-        printf("Enter command (send/search/exit): ");
+        printf("Enter command (send/search/logout): ");
         char command[10];
         scanf("%9s", command);
 
@@ -136,11 +138,11 @@ int main() {
             send_message(login, receiver, message);
         } else if (strcmp(command, "search") == 0) {
             search_history(login);
-        } else if (strcmp(command, "exit") == 0) {
+        } else if (strcmp(command, "logout") == 0) {
             disconnect_from_server(login);
             break;
         } else {
-            printf("Unknown command. Use 'send', 'search', or 'exit'.\n");
+            printf("Unknown command. Use 'send', 'search', or 'logout'.\n");
         }
     }
 

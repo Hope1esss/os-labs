@@ -40,7 +40,11 @@ void remove_client(const char *login)
         if (strcmp(clients[i].login, login) == 0)
         {
             close(clients[i].pipe_fd);
-            clients[i] = clients[client_count - 1];
+            // Shift clients
+            for (int j = i; j < client_count - 1; j++)
+            {
+                clients[j] = clients[j + 1];
+            }
             client_count--;
             return;
         }
@@ -81,7 +85,8 @@ void store_message(const char *sender, const char *receiver, const char *message
     {
         strcpy(messages[message_count].sender, sender);
         strcpy(messages[message_count].receiver, receiver);
-        strncpy(messages[message_count].message, message, MAX_MSG_LEN);
+        strncpy(messages[message_count].message, message, MAX_MSG_LEN - 1);
+        messages[message_count].message[MAX_MSG_LEN - 1] = '\0';
         message_count++;
     }
     else
@@ -90,19 +95,30 @@ void store_message(const char *sender, const char *receiver, const char *message
     }
 }
 
-void handle_search_request(const char *login, int client_fd)
+void handle_search_request(const char *login)
 {
-    char result[MAX_MSG_LEN];
-    write(client_fd, "-----HISTORY-----\n", strlen("-----HISTORY------\n"));
-    for (int i = 0; i < message_count; i++)
+    int index = find_client(login);
+    if (index != -1)
     {
-        if (strcmp(messages[i].receiver, login) == 0 || strcmp(messages[i].sender, login) == 0)
+        char buffer[MAX_HISTORY_LEN];
+        snprintf(buffer, MAX_HISTORY_LEN, "-----HISTORY-----\n");
+        write(clients[index].pipe_fd, buffer, strlen(buffer));
+        for (int i = 0; i < message_count; i++)
         {
-            snprintf(result, MAX_HISTORY_LEN, "[%s -> %s]: %s\n", messages[i].sender, messages[i].receiver, messages[i].message);
-            write(client_fd, result, strlen(result));
+            if (strcmp(messages[i].receiver, login) == 0 || strcmp(messages[i].sender, login) == 0)
+            {
+                char msg[MAX_HISTORY_LEN];
+                snprintf(msg, MAX_HISTORY_LEN, "[%s -> %s]: %s\n", messages[i].sender, messages[i].receiver, messages[i].message);
+                write(clients[index].pipe_fd, msg, strlen(msg));
+            }
         }
+        snprintf(buffer, MAX_HISTORY_LEN, "-----HISTORY-----\n");
+        write(clients[index].pipe_fd, buffer, strlen(buffer));
     }
-    write(client_fd, "-----HISTORY-----\n", strlen("-----HISTORY------\n"));
+    else
+    {
+        printf("Client '%s' not found.\n", login);
+    }
 }
 
 int main()
@@ -126,18 +142,21 @@ int main()
     while (1)
     {
         memset(buffer, 0, MAX_MSG_LEN);
-        ssize_t bytes_read = read(server_fd, buffer, MAX_MSG_LEN);
-
+        ssize_t bytes_read = read(server_fd, buffer, MAX_MSG_LEN - 1);
         if (bytes_read > 0)
         {
-            // Parse command: "LOGIN:login:pipe_name", "SEND:sender:receiver:message", or "SEARCH:login"
+            buffer[bytes_read] = '\0';
+            // Parse command: "LOGIN:login:pipe_name", "SEND:sender:receiver:message", "SEARCH:login", "LOGOUT:login"
             char *command = strtok(buffer, ":");
+            if (command == NULL)
+                continue;
 
             if (strcmp(command, "LOGIN") == 0)
             {
                 char *login = strtok(NULL, ":");
-                char *pipe_name = strtok(NULL, ":");
-                add_client(login, pipe_name);
+                char *pipe_name = strtok(NULL, "\n");
+                if (login && pipe_name)
+                    add_client(login, pipe_name);
                 printf("Client '%s' connected.\n", login);
             }
             else if (strcmp(command, "SEND") == 0)
@@ -145,22 +164,20 @@ int main()
                 char *sender = strtok(NULL, ":");
                 char *receiver = strtok(NULL, ":");
                 char *message = strtok(NULL, "\n");
-                broadcast_message(sender, receiver, message);
-                store_message(sender, receiver, message);
+                if (sender && receiver && message)
+                    broadcast_message(sender, receiver, message);
             }
             else if (strcmp(command, "SEARCH") == 0)
             {
-                char *login = strtok(NULL, ":");
-                int client_fd = find_client(login) != -1 ? clients[find_client(login)].pipe_fd : -1;
-                if (client_fd != -1)
-                {
-                    handle_search_request(login, client_fd);
-                }
+                char *login = strtok(NULL, "\n");
+                if (login)
+                    handle_search_request(login);
             }
             else if (strcmp(command, "LOGOUT") == 0)
             {
-                char *login = strtok(NULL, ":");
-                remove_client(login);
+                char *login = strtok(NULL, "\n");
+                if (login)
+                    remove_client(login);
                 printf("Client '%s' disconnected.\n", login);
             }
         }
