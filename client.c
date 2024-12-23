@@ -85,8 +85,21 @@ void receive_messages(const char *pipe_name)
         if (bytes_read > 0)
         {
             buffer[bytes_read] = '\0';
-            printf("\n%s> ", buffer);
+            if (strcmp(buffer, "SERVER_CLOSED\n") == 0)
+            {
+                printf("Server has been closed. Disconnecting.\n");
+                close(client_fd);
+                exit(0);
+            }
+            printf("%s", buffer);
+            printf("%s", "> ");
             fflush(stdout);
+        }
+        else if (bytes_read == 0)
+        {
+            printf("Disconnected from server. Exiting.\n");
+            close(client_fd);
+            exit(0);
         }
     }
 
@@ -122,7 +135,7 @@ int main() {
 
     // Main loop: send messages or search history
     while (1) {
-        printf("Enter command (send/search/logout): ");
+        printf("> ");
         char command[10];
         scanf("%9s", command);
 

@@ -100,8 +100,8 @@ void handle_search_request(const char *login)
     int index = find_client(login);
     if (index != -1)
     {
-        char buffer[MAX_HISTORY_LEN];
-        snprintf(buffer, MAX_HISTORY_LEN, "-----HISTORY-----\n");
+        char buffer[MAX_MSG_LEN];
+        snprintf(buffer, MAX_MSG_LEN, "-----HISTORY-----\n");
         write(clients[index].pipe_fd, buffer, strlen(buffer));
         for (int i = 0; i < message_count; i++)
         {
@@ -165,7 +165,10 @@ int main()
                 char *receiver = strtok(NULL, ":");
                 char *message = strtok(NULL, "\n");
                 if (sender && receiver && message)
+                {
                     broadcast_message(sender, receiver, message);
+                    store_message(sender, receiver, message);
+                }
             }
             else if (strcmp(command, "SEARCH") == 0)
             {
@@ -183,6 +186,14 @@ int main()
         }
     }
 
+    for (int i = 0; i < client_count; i++)
+    {
+        char buffer[MAX_MSG_LEN];
+        snprintf(buffer, MAX_MSG_LEN, "SERVER_CLOSED\n");
+        write(clients[i].pipe_fd, buffer, strlen(buffer));
+        close(clients[i].pipe_fd);
+    }
+    
     close(server_fd);
     unlink(SERVER_PIPE);
     return 0;
