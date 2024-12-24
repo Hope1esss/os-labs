@@ -1,7 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <time.h>
 
 pthread_mutex_t mutex;
 const char *text;
@@ -68,6 +70,9 @@ int main(int argc, char *argv[])
 
     pthread_mutex_init(&mutex, NULL);
 
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
     for (int i = 0; i < num_threads; i++)
     {
         thread_ids[i] = i;
@@ -79,8 +84,13 @@ int main(int argc, char *argv[])
         pthread_join(threads[i], NULL);
     }
 
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
     pthread_mutex_destroy(&mutex);
 
+    double elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Elapsed time: %.6f seconds\n", elapsed_time);
     printf("Search completed. Threads used: %d\n", num_threads);
+
     return 0;
 }
