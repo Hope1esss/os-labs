@@ -40,7 +40,6 @@ void remove_client(const char *login)
         if (strcmp(clients[i].login, login) == 0)
         {
             close(clients[i].pipe_fd);
-            // Shift clients
             for (int j = i; j < client_count - 1; j++)
             {
                 clients[j] = clients[j + 1];

@@ -114,10 +114,8 @@ int main() {
     printf("Enter your login: ");
     scanf("%49s", login);
 
-    // Connect to the server
     connect_to_server(login);
 
-    // Create client-specific pipe for receiving messages
     char client_pipe[100];
     snprintf(client_pipe, sizeof(client_pipe), "/tmp/%s_pipe", login);
     if (mkfifo(client_pipe, 0666) == -1 && errno != EEXIST) {
@@ -127,13 +125,11 @@ int main() {
 
     printf("Connected as '%s'. Waiting for messages...\n", login);
 
-    // Run message receiving in a separate process
     if (fork() == 0) {
         receive_messages(client_pipe);
         exit(0);
     }
 
-    // Main loop: send messages or search history
     while (1) {
         printf("> ");
         char command[10];
@@ -144,9 +140,9 @@ int main() {
             scanf("%49s", receiver);
 
             printf("Enter your message: ");
-            getchar(); // Consume newline left by scanf
+            getchar();
             fgets(message, MAX_MSG_LEN, stdin);
-            message[strcspn(message, "\n")] = 0; // Remove trailing newline
+            message[strcspn(message, "\n")] = 0;
 
             send_message(login, receiver, message);
         } else if (strcmp(command, "search") == 0) {
