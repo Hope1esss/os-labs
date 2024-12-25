@@ -155,7 +155,6 @@ int main() {
         }
     }
 
-    // Cleanup
     unlink(client_pipe);
     return 0;
 }
