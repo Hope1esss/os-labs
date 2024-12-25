@@ -53,7 +53,7 @@ void send_message(const char *login, const char *receiver, const char *message)
     close(server_fd);
 }
 
-void search_history(const char *login)
+void take_history(const char *login)
 {
     int server_fd = open(SERVER_PIPE, O_WRONLY);
     if (server_fd == -1)
@@ -63,7 +63,22 @@ void search_history(const char *login)
     }
 
     char buffer[MAX_MSG_LEN];
-    snprintf(buffer, MAX_MSG_LEN, "SEARCH:%s", login);
+    snprintf(buffer, MAX_MSG_LEN, "HISTORY:%s", login);
+    write(server_fd, buffer, strlen(buffer));
+    close(server_fd);
+}
+
+void search_history(const char *login, const char *pattern)
+{
+    int server_fd = open(SERVER_PIPE, O_WRONLY);
+    if (server_fd == -1)
+    {
+        perror("Error sending search request to server");
+        return;
+    }
+
+    char buffer[MAX_MSG_LEN];
+    snprintf(buffer, MAX_MSG_LEN, "SEARCH:%s:%s", login, pattern);
     write(server_fd, buffer, strlen(buffer));
     close(server_fd);
 }
@@ -110,6 +125,7 @@ int main() {
     char login[50];
     char receiver[50];
     char message[MAX_MSG_LEN];
+    char pattern[MAX_MSG_LEN];
 
     printf("Enter your login: ");
     scanf("%49s", login);
@@ -145,13 +161,19 @@ int main() {
             message[strcspn(message, "\n")] = 0;
 
             send_message(login, receiver, message);
+        } else if (strcmp(command, "history") == 0) {
+            take_history(login);
         } else if (strcmp(command, "search") == 0) {
-            search_history(login);
-        } else if (strcmp(command, "logout") == 0) {
+            printf("Enter pattern: ");
+            scanf("%49s", pattern);
+
+            search_history(login, pattern);
+        }
+        else if (strcmp(command, "logout") == 0) {
             disconnect_from_server(login);
             break;
         } else {
-            printf("Unknown command. Use 'send', 'search', or 'logout'.\n");
+            printf("Unknown command. Use 'send', 'history', 'search', or 'logout'.\n");
         }
     }
 

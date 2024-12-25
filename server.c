@@ -94,7 +94,7 @@ void store_message(const char *sender, const char *receiver, const char *message
     }
 }
 
-void handle_search_request(const char *login)
+void handle_history_request(const char *login)
 {
     int index = find_client(login);
     if (index != -1)
@@ -119,7 +119,32 @@ void handle_search_request(const char *login)
         printf("Client '%s' not found.\n", login);
     }
 }
+void handle_search_request(const char *login, const char *pattern)
+{
+    int index = find_client(login);
+    if (index != -1)
+    {
+        char buffer[MAX_MSG_LEN];
+        snprintf(buffer, MAX_MSG_LEN, "-----SEARCH-----\n");
+        write(clients[index].pipe_fd, buffer, strlen(buffer));
+        for (int i = 0; i < message_count; i++)
+        {
+            if (strstr(messages[i].message, pattern) != NULL)
+            {
+                char msg[MAX_HISTORY_LEN];
+                snprintf(msg, MAX_HISTORY_LEN, "[%s -> %s]: %s\n", messages[i].sender, messages[i].receiver, messages[i].message);
+                write(clients[index].pipe_fd, msg, strlen(msg));
+            }
+        }
+        snprintf(buffer, MAX_HISTORY_LEN, "-----SEARCH-----\n");
+        write(clients[index].pipe_fd, buffer, strlen(buffer));
 
+    }
+    else
+    {
+        printf("Client '%s' not found.\n", login);
+    }
+}
 int main()
 {
     if (mkfifo(SERVER_PIPE, 0666) == -1 && errno != EEXIST)
@@ -145,7 +170,7 @@ int main()
         if (bytes_read > 0)
         {
             buffer[bytes_read] = '\0';
-            // Parse command: "LOGIN:login:pipe_name", "SEND:sender:receiver:message", "SEARCH:login", "LOGOUT:login"
+            // Parse command: "LOGIN:login:pipe_name", "SEND:sender:receiver:message", "HISTORY:login", "SEARCH:login:pattern", "LOGOUT:login"
             char *command = strtok(buffer, ":");
             if (command == NULL)
                 continue;
@@ -169,11 +194,18 @@ int main()
                     store_message(sender, receiver, message);
                 }
             }
-            else if (strcmp(command, "SEARCH") == 0)
+            else if (strcmp(command, "HISTORY") == 0)
             {
                 char *login = strtok(NULL, "\n");
                 if (login)
-                    handle_search_request(login);
+                    handle_history_request(login);
+            }
+            else if (strcmp(command, "SEARCH") == 0)
+            {
+                char *login = strtok(NULL, ":");
+                char *pattern = strtok(NULL, "\n");
+                if (login && pattern)
+                    handle_search_request(login, pattern);
             }
             else if (strcmp(command, "LOGOUT") == 0)
             {
